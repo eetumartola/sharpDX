@@ -4,6 +4,7 @@ using SharpDX.Direct3D11;
 using SharpDX.DXGI;
 using SharpDX.Windows;
 using D3D11Device = SharpDX.Direct3D11.Device;
+using D3D11Device2 = SharpDX.Direct3D11.Device2;
 
 namespace eedx
 {
