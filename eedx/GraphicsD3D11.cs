@@ -16,23 +16,26 @@ namespace eedx
             TripleBuffering = 2
         }
 
-        private SwapChain _swapChain;
-        public SwapChain SwapChain { get { return _swapChain; } }
-        private D3D11Device _device;
-        private DeviceContext _deviceContext;
+        private SwapChain1 _swapChain;
+        private SwapChain2 _swapChain2;
+        public SwapChain1 SwapChain { get { return _swapChain; } }
+        public SwapChain2 SwapChain2 { get { return _swapChain2; } }
+        private D3D11Device2 _device;
+        private DeviceContext2 _deviceContext;
         private RenderTargetView _renderTargetView;
 
         private Color _bgColor = Color.Aquamarine;
 
         public void Initialise(RenderForm renderForm, bool windowed)
         {
-            ModeDescription modeDescription = DescribeBuffer();
-            SwapChainDescription swapChainDescription = DescribeSwapChain(modeDescription, renderForm, windowed);
-            CreateDevice(swapChainDescription);
+            //ModeDescription modeDescription = DescribeBuffer();
+            SwapChainDescription1 swapChainDescription = DescribeSwapChain(renderForm, windowed);
+            CreateDevice(swapChainDescription, renderForm);
             AssignDeviceContext();
             CreateRenderTargetView();
         }
 
+        /*
         private ModeDescription DescribeBuffer()
         {
             ModeDescription desc = new ModeDescription()
@@ -40,38 +43,79 @@ namespace eedx
                 Width = DemoConsts.kWidth,
                 Height = DemoConsts.kHeight,
                 RefreshRate = new Rational(DemoConsts.kRefreshRate, 1),
-                Format = Format.R8G8B8A8_UNorm
+                Format = Format.R8G8B8A8_UNorm,
+                //Stereo = false;
+                //Scaling = Scaling.Stretch;
             };
             return desc;
         }
-
-        private SwapChainDescription DescribeSwapChain(ModeDescription modeDescription, RenderForm renderForm, bool windowed)
+        */
+        private SwapChainDescription1 DescribeSwapChain(RenderForm renderForm, bool windowed)
         {
             SwapChainDescription desc = new SwapChainDescription()
             {
-                ModeDescription = modeDescription,
+                //ModeDescription = modeDescription,
                 SampleDescription = new SampleDescription(1, 0),
                 Usage = Usage.RenderTargetOutput,
                 BufferCount = (int)BufferingType.DoubleBuffering,
-                OutputHandle = renderForm.Handle,
-                IsWindowed = windowed
+                //OutputHandle = renderForm.Handle,
+               // IsWindowed = windowed
             };
-            return desc;
+            var desc1 = new SwapChainDescription1()
+            {
+                Width = renderForm.ClientSize.Width,
+                Height = renderForm.ClientSize.Height,
+                Format = Format.R8G8B8A8_UNorm,
+                Stereo = false,
+                SampleDescription = new SampleDescription(1, 0),
+                Usage = Usage.BackBuffer | Usage.RenderTargetOutput,
+                BufferCount = 1,
+                Scaling = Scaling.Stretch,
+                SwapEffect = SwapEffect.Discard,
+            };
+
+            return desc1;
         }
 
-        private void CreateDevice(SwapChainDescription swapChainDescription)
+        private void CreateDevice(SwapChainDescription1 swapChainDescription, RenderForm renderForm)
         {
-            D3D11Device.CreateWithSwapChain(
-                DriverType.Hardware,
-                DeviceCreationFlags.None,
-                swapChainDescription,
-                out _device,
-                out _swapChain);
+            // First create a regular D3D11 device
+            using (var device11 = new D3D11Device(
+             SharpDX.Direct3D.DriverType.Hardware,
+             DeviceCreationFlags.None,
+             new[] {
+                 SharpDX.Direct3D.FeatureLevel.Level_11_1,
+                 SharpDX.Direct3D.FeatureLevel.Level_11_0,
+             }))
+            {
+                // Query device for the Device2 interface (ID3D11Device1)
+                _device = device11.QueryInterfaceOrNull<D3D11Device2>();
+                if (_device == null) throw new System.NotSupportedException("SharpDX.Direct3D11.Device1 is not supported");
+            }
+
+            // Rather than create a new DXGI Factory we reuse the
+            // one that has been used internally to create the device
+            using (var dxgi = _device.QueryInterface<SharpDX.DXGI.Device2>())
+            using (var adapter = dxgi.Adapter)
+            using (var factory = adapter.GetParent<Factory2>())
+            {
+                SwapChainDescription1 desc1 = swapChainDescription;
+                _swapChain = new SwapChain1(factory,  _device, renderForm.Handle,  ref desc1,
+                new SwapChainFullScreenDescription()
+                {
+                    RefreshRate = new Rational(60, 1),
+                    Scaling = DisplayModeScaling.Centered,
+                    Windowed = true
+                },
+                adapter.Outputs[0]); //restrict display
+
+            }
+            _swapChain2 = _swapChain.QueryInterfaceOrNull<SwapChain2>();
         }
 
         private void AssignDeviceContext()
         {
-            _deviceContext = _device.ImmediateContext;
+            _deviceContext = _device.ImmediateContext2;
         }
 
         private void CreateRenderTargetView()
@@ -98,7 +142,8 @@ namespace eedx
 
         public void PresentSwapChain()
         {
-            _swapChain.Present(1, PresentFlags.None);
+            //_swapChain.Present(1, PresentFlags.None);
+            _swapChain2.Present(0, PresentFlags.RestrictToOutput);//, new PresentParameters());
         }
     }
 }
