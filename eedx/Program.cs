@@ -11,6 +11,9 @@ namespace eedx
 
         static void Main(string[] args)
         {
+            // Enable debug object tracking
+            SharpDX.Configuration.EnableObjectTracking = false;
+
             InitialiseRenderForm();
             _game.Initialise(_renderForm, true);
             RenderLoop.Run(_renderForm, RenderCallback);

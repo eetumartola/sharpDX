@@ -35,21 +35,6 @@ namespace eedx
             CreateRenderTargetView();
         }
 
-        /*
-        private ModeDescription DescribeBuffer()
-        {
-            ModeDescription desc = new ModeDescription()
-            {
-                Width = DemoConsts.kWidth,
-                Height = DemoConsts.kHeight,
-                RefreshRate = new Rational(DemoConsts.kRefreshRate, 1),
-                Format = Format.R8G8B8A8_UNorm,
-                //Stereo = false;
-                //Scaling = Scaling.Stretch;
-            };
-            return desc;
-        }
-        */
         private SwapChainDescription1 DescribeSwapChain(RenderForm renderForm, bool windowed)
         {
             SwapChainDescription desc = new SwapChainDescription()
@@ -69,7 +54,7 @@ namespace eedx
                 Stereo = false,
                 SampleDescription = new SampleDescription(1, 0),
                 Usage = Usage.BackBuffer | Usage.RenderTargetOutput,
-                BufferCount = 1,
+                BufferCount = (int)BufferingType.DoubleBuffering,
                 Scaling = Scaling.Stretch,
                 SwapEffect = SwapEffect.Discard,
             };
@@ -82,7 +67,7 @@ namespace eedx
             // First create a regular D3D11 device
             using (var device11 = new D3D11Device(
              SharpDX.Direct3D.DriverType.Hardware,
-             DeviceCreationFlags.None,
+             DeviceCreationFlags.Debug, // normlly .None
              new[] {
                  SharpDX.Direct3D.FeatureLevel.Level_11_1,
                  SharpDX.Direct3D.FeatureLevel.Level_11_0,
@@ -108,9 +93,14 @@ namespace eedx
                     Windowed = true
                 },
                 adapter.Outputs[0]); //restrict display
-
             }
             _swapChain2 = _swapChain.QueryInterfaceOrNull<SwapChain2>();
+
+            _device.DebugName = "The Device";
+            _swapChain.DebugName = "The 11.0 SwapChain";
+            _swapChain2.DebugName = "The 11.2 SwapChain";
+            //_backBuffer.DebugName = "The Backbuffer";
+
         }
 
         private void AssignDeviceContext()
@@ -125,6 +115,8 @@ namespace eedx
                 _renderTargetView = new RenderTargetView(_device, backBuffer);
             }
             _deviceContext.OutputMerger.SetRenderTargets(_renderTargetView);
+            _renderTargetView.DebugName = "The RenderTargetView";
+
         }
 
         public void TearDown()
@@ -142,8 +134,10 @@ namespace eedx
 
         public void PresentSwapChain()
         {
-            //_swapChain.Present(1, PresentFlags.None);
-            _swapChain2.Present(0, PresentFlags.RestrictToOutput);//, new PresentParameters());
+            // Output the current active Direct3D objects
+            //System.Diagnostics.Debug.Write(SharpDX.Diagnostics.ObjectTracker.ReportActiveObjects());
+
+            _swapChain2.Present(1, PresentFlags.RestrictToOutput);//, new PresentParameters());
         }
     }
 }

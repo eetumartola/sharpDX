@@ -1,0 +1,181 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Windows.Forms;
+
+using SharpDX;
+using SharpDX.DXGI;
+using SharpDX.Direct3D11;
+using SharpDX.D3DCompiler;
+using Common;
+
+using Buffer = SharpDX.Direct3D11.Buffer;
+
+namespace D3DApp
+{ 
+    public class D3DDemoApp : D3DApplicationDesktop
+    {
+        public D3DDemoApp(System.Windows.Forms.Form window) : base(window)
+        {
+
+        }
+
+        public override void Run()
+        {
+            var myRenderer = ToDispose(new DemoRenderer());
+            myRenderer.Initialize(this);
+            
+            // Create and initialize the axis lines renderer 
+            var axisLines = ToDispose(new AxisLinesRenderer());
+            axisLines.Initialize(this);
+            // Create and initialize the triangle renderer 
+            var triangle = ToDispose(new TriangleRenderer());
+            triangle.Initialize(this);
+            // Create and initialize the quad tristrip renderer
+            var tristrip = ToDispose(new TriStripRenderer());
+            tristrip.Initialize(this);
+            // Create and initialize the quad tristrip renderer
+            var trilist = ToDispose(new TriListRenderer());
+            trilist.Initialize(this);
+
+            // Initialize the world matrix
+            var worldMatrix = Matrix.Identity;
+            // Set camera position slightly to the right (x), above (y) // and behind (-z
+            var cameraPosition = new Vector3(1, 1, -2);
+            var cameraTarget = Vector3.Zero;    // Looking at origin 0,0,0
+            var cameraUp = Vector3.UnitY;       // Y+ is Up
+            // Create view matrix from our camera pos, target and up 
+            var viewMatrix = Matrix.LookAtLH(cameraPosition, cameraTarget, cameraUp);
+
+            // Create the projection matrix // Field of View 60degrees = Pi/3 radians // Aspect ratio (based on window size), Near clip, Far clip 
+            var projectionMatrix = Matrix.PerspectiveFovLH((float)Math.PI / 3f, Width / (float)Height, 0.5f, 100f);
+            // Maintain the correct aspect ratio on resize
+            Window.Resize += (s, e) => {  projectionMatrix = Matrix.PerspectiveFovLH( (float)Math.PI / 3f, Width / (float)Height, 0.5f, 100f); };
+
+
+            SharpDX.Windows.RenderLoop.Run(Window, () => {
+                //... Render frame    
+                // Clear depth stencil view
+                context.ClearDepthStencilView(DepthStencilView, DepthStencilClearFlags.Depth|DepthStencilClearFlags. Stencil,1.0f,0);
+                // Clear render target view
+                context.ClearRenderTargetView(RenderTargetView, Color.DarkCyan);
+
+                // Create viewProjection matrix
+                var viewProjection = Matrix.Multiply(viewMatrix, projectionMatrix);
+                // Create WorldViewProjection Matrix
+                var worldViewProjection = worldMatrix * viewProjection; // HLSL defaults to "column-major" order matrices so // transpose first (SharpDX uses row-major matrices).
+                worldViewProjection.Transpose();
+                // Write the worldViewProjection to the constant buffer
+                context.UpdateSubresource(ref worldViewProjection, worldViewProjectionBuffer);
+                // Render the primitives
+                axisLines.Render();
+                //triangle.Render(); //tristrip.Render();
+                trilist.Render();
+                // Render FPS
+                //fps.Render(); // Render instructions + position changes
+                //textRenderer.Render();
+
+                //myRenderer.Render();
+                Present();
+            });
+        }
+
+        // The vertex shader 
+        ShaderBytecode vertexShaderBytecode;
+        VertexShader vertexShader;
+        // The pixel shader 
+        ShaderBytecode pixelShaderBytecode;
+        PixelShader pixelShader;
+        // The vertex layout for the IA 
+        InputLayout vertexLayout;
+        // A buffer that will be used to update the constant buffer
+        // used by the vertex shader. This contains our worldViewProjection matrix 
+        Buffer worldViewProjectionBuffer;
+        // Our depth stencil state
+        DepthStencilState depthStencilState;
+
+        DeviceContext context;
+
+        protected override void CreateDeviceDependentResources(DeviceManager deviceManager)
+        {
+            base.CreateDeviceDependentResources(deviceManager);
+            // Release all resources 
+            RemoveAndDispose(ref vertexShader);
+            RemoveAndDispose(ref vertexShaderBytecode);
+            RemoveAndDispose(ref pixelShader);
+            RemoveAndDispose(ref pixelShaderBytecode);
+            RemoveAndDispose(ref vertexLayout);
+            RemoveAndDispose(ref worldViewProjectionBuffer);
+            RemoveAndDispose(ref depthStencilState);
+
+            // Get a reference to the Device1 instance and context 
+            var device = deviceManager.Direct3DDevice;
+            context = deviceManager.Direct3DContext;
+
+            ShaderFlags shaderFlags = ShaderFlags.None;
+            #if DEBUG
+            shaderFlags = ShaderFlags.Debug;
+            #endif
+            // Compile and create the vertex shader 
+            vertexShaderBytecode = ToDispose(ShaderBytecode. CompileFromFile("Simple.hlsl", "VSMain", "vs_5_0", shaderFlags)); 
+            vertexShader = ToDispose(new VertexShader(device, vertexShaderBytecode));
+            // Compile and create the pixel shader
+            pixelShaderBytecode = ToDispose(ShaderBytecode. CompileFromFile("Simple.hlsl", "PSMain", "ps_5_0", shaderFlags));
+            pixelShader = ToDispose(new PixelShader(device, pixelShaderBytecode));
+
+            // Layout from VertexShader input signature
+            vertexLayout = ToDispose(new InputLayout(device,
+                vertexShaderBytecode.GetPart(ShaderBytecodePart.InputSignatureBlob),
+                new[]{
+                    // input semantic SV_Position =vertex coord in object space
+                    new InputElement("SV_Position", 0, Format.R32G32B32A32_Float, 0, 0),
+                    // input semantic COLOR = vertex color
+                    new InputElement("COLOR", 0, Format.R32G32B32A32_Float, 16, 0)
+                }));
+
+            // Create the buffer that will store our WVP matrix 
+                worldViewProjectionBuffer = ToDispose(new Buffer(device, 
+                    Utilities.SizeOf<Matrix>(),
+                    ResourceUsage.Default,
+                    BindFlags.ConstantBuffer,
+                    CpuAccessFlags.None,
+                    ResourceOptionFlags.None, 0));
+
+            // Configure the OM to discard pixels that are
+            // further than the current pixel in the depth buffer.
+            depthStencilState = ToDispose(new DepthStencilState(device, new DepthStencilStateDescription() {
+                IsDepthEnabled = true,
+                // enable depth?
+                DepthComparison = Comparison.Less,
+                DepthWriteMask = SharpDX.Direct3D11.DepthWriteMask.All,
+                IsStencilEnabled = false,
+                // enable stencil?
+                StencilReadMask = 0xff,                // 0xff (no mask)   
+                StencilWriteMask = 0xff,                // 0xff (no mask)   
+                                                        // Configure FrontFace depth/stencil operations 
+                FrontFace = new DepthStencilOperationDescription()    {
+                    Comparison = Comparison.Always,
+                    PassOperation = StencilOperation.Keep,
+                    FailOperation = StencilOperation.Keep,
+                    DepthFailOperation = StencilOperation.Increment    },
+                // Configure BackFace depth/stencil operations 
+                BackFace = new DepthStencilOperationDescription()    {
+                    Comparison = Comparison.Always,
+                    PassOperation = StencilOperation.Keep,
+                    FailOperation = StencilOperation.Keep,
+                    DepthFailOperation = StencilOperation.Decrement
+                },
+            }));
+
+            // Tell the IA what the vertices will look like
+            context.InputAssembler.InputLayout = vertexLayout;
+            // Bind constant buffer to vertex shader stage
+            context.VertexShader.SetConstantBuffer(0, worldViewProjectionBuffer);
+            // Set the vertex shader to run
+            context.VertexShader.Set(vertexShader);
+            // Set the pixel shader to run
+            context.PixelShader.Set(pixelShader);
+            // Set our depth stencil state
+            context.OutputMerger.DepthStencilState = depthStencilState;
+        }
+    }
+}

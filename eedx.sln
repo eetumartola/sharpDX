@@ -5,6 +5,10 @@ VisualStudioVersion = 14.0.24720.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "eedx", "eedx\eedx.csproj", "{AAC209AF-4EF6-4CC7-92AD-D622B2DEE78E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common", "Common\Common.csproj", "{939D8319-6E32-4700-BE9F-C1D079F57DDD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "D3DApp", "D3DApp\D3DApp.csproj", "{93050BAA-0880-4ACE-B36F-EDF6A92A7C48}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +19,14 @@ Global
 		{AAC209AF-4EF6-4CC7-92AD-D622B2DEE78E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AAC209AF-4EF6-4CC7-92AD-D622B2DEE78E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AAC209AF-4EF6-4CC7-92AD-D622B2DEE78E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{939D8319-6E32-4700-BE9F-C1D079F57DDD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{939D8319-6E32-4700-BE9F-C1D079F57DDD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{939D8319-6E32-4700-BE9F-C1D079F57DDD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{939D8319-6E32-4700-BE9F-C1D079F57DDD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{93050BAA-0880-4ACE-B36F-EDF6A92A7C48}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{93050BAA-0880-4ACE-B36F-EDF6A92A7C48}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{93050BAA-0880-4ACE-B36F-EDF6A92A7C48}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{93050BAA-0880-4ACE-B36F-EDF6A92A7C48}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
