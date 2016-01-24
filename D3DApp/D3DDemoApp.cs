@@ -70,16 +70,30 @@ namespace D3DApp
                 // Create viewProjection matrix
                 var viewProjection = Matrix.Multiply(viewMatrix, projectionMatrix);
                 // Create WorldViewProjection Matrix
-                var worldViewProjection = worldMatrix * viewProjection; // HLSL defaults to "column-major" order matrices so // transpose first (SharpDX uses row-major matrices).
+                var worldViewProjection = worldMatrix * viewProjection;
+                // HLSL defaults to "column-major" order matrices so
+                // transpose first (SharpDX uses row-major matrices).
                 worldViewProjection.Transpose();
                 // Write the worldViewProjection to the constant buffer
                 context.UpdateSubresource(ref worldViewProjection, worldViewProjectionBuffer);
+
+                var perFrame = new ConstantBuffers.PerFrame();
+                perFrame.CameraPosition = cameraPosition;
+                context.UpdateSubresource(ref perFrame, perFrameBuffer);
+
                 // Render the primitives
                 axisLines.Render();
                 //triangle.Render(); //tristrip.Render();
                 //trilist.Render();
                 worldViewProjection *= mesh.World;
                 context.UpdateSubresource(ref worldViewProjection, worldViewProjectionBuffer);
+
+                var perObject = new ConstantBuffers.PerObject();
+                perObject.World = mesh.World * worldMatrix;
+                perObject.WorldInverseTranspose = Matrix.Transpose(Matrix.Invert(perObject.World));
+                perObject.WorldViewProjection = perObject.World * viewProjection; perObject.Transpose();
+                context.UpdateSubresource(ref perObject, perObjectBuffer);
+
                 mesh.Render();
                 // Render FPS
                 //fps.Render(); // Render instructions + position changes
@@ -100,7 +114,7 @@ namespace D3DApp
         InputLayout vertexLayout;
         // A buffer that will be used to update the constant buffer
         // used by the vertex shader. This contains our worldViewProjection matrix 
-        Buffer worldViewProjectionBuffer;
+        Buffer worldViewProjectionBuffer, perObjectBuffer, perFrameBuffer;
         // Our depth stencil state
         DepthStencilState depthStencilState;
 
@@ -130,27 +144,43 @@ namespace D3DApp
             vertexShaderBytecode = ToDispose(ShaderBytecode.CompileFromFile("Textured.hlsl", "VSMain", "vs_5_0", shaderFlags)); 
             vertexShader = ToDispose(new VertexShader(device, vertexShaderBytecode));
             // Compile and create the pixel shader
-            pixelShaderBytecode = ToDispose(ShaderBytecode.CompileFromFile("Textured.hlsl", "PSMain", "ps_5_0", shaderFlags));
-            pixelShader = ToDispose(new PixelShader(device, pixelShaderBytecode));
+            //pixelShaderBytecode = ToDispose(ShaderBytecode.CompileFromFile("Textured.hlsl", "PSMain", "ps_5_0", shaderFlags));
+            //pixelShader = ToDispose(new PixelShader(device, pixelShaderBytecode));
+            //HLSLCompiler lets us use #includes
+            using (pixelShaderBytecode = HLSLCompiler.CompileFromFile(@"Textured.hlsl", "PSMain", "ps_5_0")) pixelShader = ToDispose(new PixelShader(device, pixelShaderBytecode));
 
             // Layout from VertexShader input signature
             vertexLayout = ToDispose(new InputLayout(device,
                 vertexShaderBytecode.GetPart(ShaderBytecodePart.InputSignatureBlob),
                 new[]{
-                    // input semantic SV_Position =vertex coord in object space
                     new InputElement("SV_Position", 0, Format.R32G32B32_Float, 0, 0),
                     new InputElement("NORMAL", 0, Format.R32G32B32_Float, 12, 0),
                     new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 24, 0),
-                    //new InputElement("TEXCOORD", 0, Format.R32G32_Float, 16, 0)
+                    new InputElement("TEXCOORD", 0, Format.R32G32_Float, 28, 0)
                 }));
 
             // Create the buffer that will store our WVP matrix 
-                worldViewProjectionBuffer = ToDispose(new Buffer(device, 
-                    Utilities.SizeOf<Matrix>(),
-                    ResourceUsage.Default,
-                    BindFlags.ConstantBuffer,
-                    CpuAccessFlags.None,
-                    ResourceOptionFlags.None, 0));
+            worldViewProjectionBuffer = ToDispose(new Buffer(device, 
+                Utilities.SizeOf<Matrix>(),
+                ResourceUsage.Default,
+                BindFlags.ConstantBuffer,
+                CpuAccessFlags.None,
+                ResourceOptionFlags.None, 0));
+
+            perObjectBuffer = ToDispose(new Buffer(device, 
+                Utilities.SizeOf<ConstantBuffers.PerObject>(),
+                ResourceUsage.Default,
+                BindFlags.ConstantBuffer,
+                CpuAccessFlags.None,
+                ResourceOptionFlags.None, 0));
+
+            perFrameBuffer = ToDispose(new Buffer(device,
+                Utilities.SizeOf<ConstantBuffers.PerFrame>(),
+                ResourceUsage.Default,
+                BindFlags.ConstantBuffer,
+                CpuAccessFlags.None,
+                ResourceOptionFlags.None, 0));
+
 
             // Configure the OM to discard pixels that are
             // further than the current pixel in the depth buffer.
@@ -181,7 +211,10 @@ namespace D3DApp
             // Tell the IA what the vertices will look like
             context.InputAssembler.InputLayout = vertexLayout;
             // Bind constant buffer to vertex shader stage
-            context.VertexShader.SetConstantBuffer(0, worldViewProjectionBuffer);
+            //context.VertexShader.SetConstantBuffer(0, worldViewProjectionBuffer);
+            context.VertexShader.SetConstantBuffer(0, perObjectBuffer);
+            context.VertexShader.SetConstantBuffer(1, perFrameBuffer);
+            context.PixelShader.SetConstantBuffer(1, perFrameBuffer);
             // Set the vertex shader to run
             context.VertexShader.Set(vertexShader);
             // Set the pixel shader to run

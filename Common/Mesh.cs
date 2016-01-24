@@ -265,8 +265,8 @@ namespace Common
 
         public bool RayIntersects(Ray ray)
         {
-            const float maxDistance = 10000;
-            float min = maxDistance;
+            //const float maxDistance = 10000;
+            //float min = maxDistance;
             bool isValid = false;
 
 
