@@ -60,6 +60,19 @@ namespace D3DApp
                 context.ClearDepthStencilView(DepthStencilView, DepthStencilClearFlags.Depth|DepthStencilClearFlags. Stencil, 1.0f, 0);
                 // Clear render target view
                 context.ClearRenderTargetView(RenderTargetView, Color.DarkCyan);
+
+                var perMaterial = new ConstantBuffers.PerMaterial();
+                perMaterial.Ambient = new Color4(0.2f);
+                perMaterial.Diffuse = Color.White;
+                perMaterial.Emissive = new Color4(0);
+                perMaterial.Specular = Color.White;
+                perMaterial.SpecularPower = 20f;
+                perMaterial.HasTexture = 0;
+                perMaterial.UVTransform = Matrix.Identity;
+                context.UpdateSubresource(ref perMaterial, perMaterialBuffer);
+
+
+
                 time = (float)clock.ElapsedTicks / (float)Stopwatch.Frequency;
                 // Set camera position slightly to the right (x), above (y) // and behind (-z
                 var cameraPosition = new Vector3((float)Math.Cos(time) , 1, (float)Math.Sin(time));
@@ -79,6 +92,10 @@ namespace D3DApp
 
                 var perFrame = new ConstantBuffers.PerFrame();
                 perFrame.CameraPosition = cameraPosition;
+                perFrame.Light.Color = Color.White;
+                var lightDir = Vector3.Transform(new Vector3(1f, -1f, -1f), worldMatrix);
+                perFrame.Light.Direction = new Vector3(lightDir.X, lightDir.Y, lightDir.Z);
+
                 context.UpdateSubresource(ref perFrame, perFrameBuffer);
 
                 // Render the primitives
@@ -114,7 +131,7 @@ namespace D3DApp
         InputLayout vertexLayout;
         // A buffer that will be used to update the constant buffer
         // used by the vertex shader. This contains our worldViewProjection matrix 
-        Buffer worldViewProjectionBuffer, perObjectBuffer, perFrameBuffer;
+        Buffer worldViewProjectionBuffer, perObjectBuffer, perFrameBuffer, perMaterialBuffer;
         // Our depth stencil state
         DepthStencilState depthStencilState;
 
@@ -139,25 +156,31 @@ namespace D3DApp
             ShaderFlags shaderFlags = ShaderFlags.None;
             #if DEBUG
             shaderFlags = ShaderFlags.Debug;
-            #endif
+#endif
             // Compile and create the vertex shader 
-            vertexShaderBytecode = ToDispose(ShaderBytecode.CompileFromFile("Textured.hlsl", "VSMain", "vs_5_0", shaderFlags)); 
-            vertexShader = ToDispose(new VertexShader(device, vertexShaderBytecode));
+            //vertexShaderBytecode = ToDispose(ShaderBytecode.CompileFromFile("Textured.hlsl", "VSMain", "vs_5_0", shaderFlags)); 
+            //vertexShader = ToDispose(new VertexShader(device, vertexShaderBytecode));
             // Compile and create the pixel shader
             //pixelShaderBytecode = ToDispose(ShaderBytecode.CompileFromFile("Textured.hlsl", "PSMain", "ps_5_0", shaderFlags));
             //pixelShader = ToDispose(new PixelShader(device, pixelShaderBytecode));
             //HLSLCompiler lets us use #includes
-            using (pixelShaderBytecode = HLSLCompiler.CompileFromFile(@"Textured.hlsl", "PSMain", "ps_5_0")) pixelShader = ToDispose(new PixelShader(device, pixelShaderBytecode));
+            using (vertexShaderBytecode = HLSLCompiler.CompileFromFile(@"Textured.hlsl", "VSMain", "vs_5_0"))
+            {
+                vertexShader = ToDispose(new VertexShader(device, vertexShaderBytecode));
 
-            // Layout from VertexShader input signature
-            vertexLayout = ToDispose(new InputLayout(device,
-                vertexShaderBytecode.GetPart(ShaderBytecodePart.InputSignatureBlob),
-                new[]{
+                // Layout from VertexShader input signature
+                vertexLayout = ToDispose(new InputLayout(device,
+                    vertexShaderBytecode.GetPart(ShaderBytecodePart.InputSignatureBlob),
+                    new[]{
                     new InputElement("SV_Position", 0, Format.R32G32B32_Float, 0, 0),
                     new InputElement("NORMAL", 0, Format.R32G32B32_Float, 12, 0),
                     new InputElement("COLOR", 0, Format.R8G8B8A8_UNorm, 24, 0),
                     new InputElement("TEXCOORD", 0, Format.R32G32_Float, 28, 0)
-                }));
+                    }));
+            }
+            using (pixelShaderBytecode = HLSLCompiler.CompileFromFile(@"Textured.hlsl", "PSMain", "ps_5_0")) pixelShader = ToDispose(new PixelShader(device, pixelShaderBytecode));
+
+
 
             // Create the buffer that will store our WVP matrix 
             worldViewProjectionBuffer = ToDispose(new Buffer(device, 
@@ -176,6 +199,13 @@ namespace D3DApp
 
             perFrameBuffer = ToDispose(new Buffer(device,
                 Utilities.SizeOf<ConstantBuffers.PerFrame>(),
+                ResourceUsage.Default,
+                BindFlags.ConstantBuffer,
+                CpuAccessFlags.None,
+                ResourceOptionFlags.None, 0));
+
+            perMaterialBuffer = ToDispose(new Buffer(device,
+                Utilities.SizeOf<ConstantBuffers.PerMaterial>(),
                 ResourceUsage.Default,
                 BindFlags.ConstantBuffer,
                 CpuAccessFlags.None,
@@ -215,6 +245,8 @@ namespace D3DApp
             context.VertexShader.SetConstantBuffer(0, perObjectBuffer);
             context.VertexShader.SetConstantBuffer(1, perFrameBuffer);
             context.PixelShader.SetConstantBuffer(1, perFrameBuffer);
+            context.VertexShader.SetConstantBuffer(2, perMaterialBuffer);
+            context.PixelShader.SetConstantBuffer(2, perMaterialBuffer);
             // Set the vertex shader to run
             context.VertexShader.Set(vertexShader);
             // Set the pixel shader to run

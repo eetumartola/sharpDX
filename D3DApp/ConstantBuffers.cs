@@ -3,7 +3,14 @@ using SharpDX;
 
 public static class ConstantBuffers
 {
-    // structures defined here
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct DirectionalLight
+    {
+        public SharpDX.Color4 Color;
+        public SharpDX.Vector3 Direction;
+        float _padding0;
+    }
+   
     [StructLayout(LayoutKind.Sequential)]
     public struct PerObject
     {
@@ -24,7 +31,21 @@ public static class ConstantBuffers
     [StructLayout(LayoutKind.Sequential, Pack = 1)]
     public struct PerFrame
     {
+        public DirectionalLight Light;
         public SharpDX.Vector3 CameraPosition;
         float _padding0;
     }
-}
+    [StructLayout(LayoutKind.Sequential, Pack = 1)]
+    public struct PerMaterial
+    {
+        public Color4 Ambient;
+        public Color4 Diffuse;
+        public Color4 Specular;
+        public float SpecularPower;
+        public uint HasTexture; // Has texture 0 false, 1 true  
+        Vector2 _padding0;
+        public Color4 Emissive;
+        public Matrix UVTransform; // Support UV transforms 
+    }
+
+    }

@@ -1,49 +1,8 @@
-
-// Constant buffer to be updated by application per object
-cbuffer PerObject : register(b0)
-{
-	// WorldViewProjection matrix 
-	float4x4 WorldViewProjection;   
-	// We need the world matrix so that we can 
-	// calculate the lighting in world space  
-	float4x4 World;    
-	// Inverse transpose of world, used for 
-	// bringing normals into world space, especially  
-	// necessary where non-uniform scaling has been applied  
-	float4x4 WorldInverseTranspose;
-};
-
-cbuffer PerFrame: register (b1) 
-{ 
-	float3 CameraPosition;
-};
+#include "Common.hlsl"
 
 // Globals for texture sampling
 Texture2D ShaderTexture : register(t0);
 SamplerState Sampler : register(s0);
-
-// Vertex Shader input structure with position and color
-struct VertexShaderInput
-{
-    float4 Position : SV_Position;
-	float3 Normal : NORMAL;    // Normal - for lighting and mapping operations
-	float4 Color : COLOR;     // Color - vertex color, used to generate a diffuse color
-	float2 TextureUV : TEXCOORD0;
-};
-
-// Vertex Shader output structure consisting of the
-// transformed position and original color
-// This is also the pixel shader input
-struct VertexShaderOutput // == PixelShaderInput
-{
-    float4 Position : SV_Position;
-	float4 Color : COLOR;     // Color - vertex color, used to generate a diffuse color
-	float2 TextureUV : TEXCOORD0;
-
-	float3 WorldNormal : NORMAL;
-	float3 WorldPosition : WORLDPOS;
-
-};
 
 // Vertex shader main function
 VertexShaderOutput VSMain(VertexShaderInput input)
@@ -53,7 +12,8 @@ VertexShaderOutput VSMain(VertexShaderInput input)
     // Transform the position from object space to homogeneous projection space
     output.Position = mul(input.Position, WorldViewProjection);
 	output.TextureUV = input.TextureUV;
-	//output.TextureUV = vec2(input.Position.x, input.Position.y)
+	//output.TextureUV = float2(input.Position.x, input.Position.y);
+	//output.TextureUV = mul(float4(input.TextureUV.x, input.TextureUV.y, 0, 1), (float4x2)UVTransform).xy;
 	output.Color = input.Color;
 
 	output.WorldNormal = mul(input.Normal, (float3x3)WorldInverseTranspose); 
@@ -63,9 +23,19 @@ VertexShaderOutput VSMain(VertexShaderInput input)
     return output;
 }
 
-// A simple Pixel Shader that simply passes through the interpolated color
+
 float4 PSMain(VertexShaderOutput input) : SV_Target
 {
+	
+	float3 normal = normalize(input.WorldNormal); 
+	//float3 toEye = normalize(CameraPosition – input.WorldPosition);
+	float3 toEye = normalize(CameraPosition - input.WorldPosition);
+	float3 toLight = normalize(-Light.Direction);
+
+	float3 diffuse = Lambert(input.Color, normal, toLight);
+	
 	//return ShaderTexture.Sample(Sampler, input.TextureUV);
-	return input.Color;
+	return input.Color * float4(diffuse, 1.0f);
+
+	//return float4(input.WorldNormal, 1.0);
 }
