@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace D3DApp
 {
@@ -17,6 +18,9 @@ namespace D3DApp
             form.ClientSize = new System.Drawing.Size(1024, 768);
             form.Show();
 
+            //var loader = new HClassicLoader();
+            //var geo = loader.Parse(@"data\torus_tri.hclassic");
+           
             using (var app = new D3DDemoApp(form))
             {
                 // Only render frames at the maximum rate the
@@ -28,6 +32,7 @@ namespace D3DApp
                 // Run the application message/rendering loop.    
                 app.Run();
             }
+
         }
     }
 }

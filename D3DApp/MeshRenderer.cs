@@ -10,54 +10,71 @@ using Buffer = SharpDX.Direct3D11.Buffer;
 public class MeshRenderer : Common.RendererBase
 {
     // The vertex buffer for tri vertices
-    Buffer cubeVertices;
-    Buffer cubeIndices;
+    Buffer meshVertexBuffer;
+    Buffer meshIndexBuffer;
     // The binding structure of the axis lines vertex buffer
-    VertexBufferBinding cubeBinding;
+    VertexBufferBinding meshBinding;
     // Shader texture resource 
     ShaderResourceView textureView;
     // Control sampling behavior with this state
     SamplerState samplerState;
+
+    HClassicGeo geo;
 
     protected override void CreateDeviceDependentResources()
     {
         base.CreateDeviceDependentResources();
         // Ensure that if already set the device resources 
         // are correctly disposed of before recreating 
-        RemoveAndDispose(ref cubeVertices);
-        RemoveAndDispose(ref cubeIndices);
+        RemoveAndDispose(ref meshVertexBuffer);
+        RemoveAndDispose(ref meshIndexBuffer);
         // Retrieve our SharpDX.Direct3D11.Device1 instance
         var device = this.DeviceManager.Direct3DDevice;
 
+        var loader = new HClassicLoader();
+        geo = loader.Parse(@"data\pig_cd_uv.hclassic");
+
+        var meshVertices = new Vertex[geo.NPoints];
+        for (int i = 0; i < meshVertices.Length; i++)
+        {
+            /*
+            uint triIndex = (uint) Math.Floor((float)i / 3.0f);
+            //Vector3 point1 = geo.Points[geo.Tris[triIndex].verts[0]];
+            //Vector3 point2 = geo.Points[geo.Tris[triIndex].verts[1]];
+            //Vector3 point3 = geo.Points[geo.Tris[triIndex].verts[2]];
+            Vector3 point1 = geo.Points[ (int) MathUtil.Mod(i+1, geo.NPoints)];
+            Vector3 point2 = geo.Points[i];
+            Vector3 point3 = geo.Points[(int)MathUtil.Mod(i + 2, geo.NPoints)];
+
+            Vector3 tangent = point1 - point2;
+            Vector3 bitangent = point3 - point2;
+            */
+            Vector3 normal = geo.PointAttributes[0].attr[i];
+            Color pointColor = new Color(geo.PointAttributes[1].attr[i]);
+            Vector2 pointUV = new Vector2(geo.PointAttributes[2].attr[i].X, 1.0f-geo.PointAttributes[2].attr[i].Y);
+            meshVertices[i] = new Vertex(geo.Points[i], Vector3.Normalize(normal), Color.Silver, pointUV);
+            //meshVertices[i] = new Vertex(geo.Points[i], Vector3.Normalize(normal), pointColor, pointUV);
+            //meshVertices[i] = new Vertex(geo.Points[i], point2, Color.Silver, new Vector2(0.0f));
+        }
+
         var color = Color.LightGray;
-        cubeVertices = ToDispose(Buffer.Create(device, BindFlags.VertexBuffer, new Vertex[] {
-            new Vertex(-0.5f, 0.5f, -0.5f, color), // 0-Top-left 
-            new Vertex(0.5f, 0.5f, -0.5f,  color), // 1-Top-right
-            new Vertex(0.5f, -0.5f, -0.5f, color), // 2-Base-right
-            new Vertex(-0.5f, -0.5f, -0.5f,color), // 3-Base-left
-            new Vertex(-0.5f, 0.5f, 0.5f,  color), // 4-Topleft
-            new Vertex(0.5f, 0.5f, 0.5f,   color), // 5-Top-right
-            new Vertex(0.5f, -0.5f, 0.5f,  color), // 6-Base-right
-            new Vertex(-0.5f, -0.5f, 0.5f, color), // 7-Base-left
-        }));
-        cubeBinding = new VertexBufferBinding(cubeVertices, Utilities.SizeOf<Vertex>(), 0);
-        cubeIndices = ToDispose(Buffer.Create(device, BindFlags.IndexBuffer, new ushort[] {
-            0, 1, 2, // Front A  
-            0, 2, 3, // Front B  
-            1, 5, 6, // Right A  
-            1, 6, 2, // Right B 
-            1, 0, 4, // Top A
-            1, 4, 5, // Top B  
-            5, 4, 7, // Back A 
-            5, 7, 6, // Back B  
-            4, 0, 3, // Left A  
-            4, 3, 7, // Left B 
-            3, 2, 6, // Bottom A 
-            3, 6, 7, // Bottom B
-        }));
+        meshVertexBuffer = ToDispose(Buffer.Create(device, BindFlags.VertexBuffer, meshVertices));
+        meshBinding = new VertexBufferBinding(meshVertexBuffer, Utilities.SizeOf<Vertex>(), 0);
+
+        var meshIndices = new ushort[3 * geo.NPrims];
+        for (int i = 0; i < geo.NPrims; i++)
+        {
+            tri currTri = geo.Tris[i];
+            meshIndices[3 * i + 0] = (ushort)currTri.verts[2];
+            meshIndices[3 * i + 1] = (ushort)currTri.verts[1];
+            meshIndices[3 * i + 2] = (ushort)currTri.verts[0]; //handedness
+        }
+
+
+        meshIndexBuffer = ToDispose(Buffer.Create(device, BindFlags.IndexBuffer, meshIndices));
 
         // Load texture
-        textureView = ToDispose(ShaderResourceView.FromFile(device, "data/Texture.png"));
+        textureView = ToDispose(ShaderResourceView.FromFile(device, "data/pig_uv.jpg"));
         // Create our sampler state
         samplerState = ToDispose(new SamplerState(device, new SamplerStateDescription()
         {
@@ -76,9 +93,9 @@ public class MeshRenderer : Common.RendererBase
         // Render the tri strip
         // Tell the IA we are using a tri list
         context.InputAssembler.PrimitiveTopology = SharpDX.Direct3D.PrimitiveTopology.TriangleList;
-        // Pass in the quad vertices
-        context.InputAssembler.SetIndexBuffer(cubeIndices, Format.R16_UInt, 0);
-        context.InputAssembler.SetVertexBuffers(0, cubeBinding);
+        // Pass in the mesh vertices
+        context.InputAssembler.SetIndexBuffer(meshIndexBuffer, Format.R16_UInt, 0);
+        context.InputAssembler.SetVertexBuffers(0, meshBinding);
 
         // Set the shader resource
         context.PixelShader.SetShaderResource(0, textureView);
@@ -86,6 +103,6 @@ public class MeshRenderer : Common.RendererBase
         context.PixelShader.SetSampler(0, samplerState);
 
         // Draw the 6 vertices of our quad
-        context.DrawIndexed(36, 0, 0);
+        context.DrawIndexed((int)geo.NPrims *3, 0, 0);
     }
 }
