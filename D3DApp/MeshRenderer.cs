@@ -32,7 +32,8 @@ public class MeshRenderer : Common.RendererBase
         var device = this.DeviceManager.Direct3DDevice;
 
         var loader = new HClassicLoader();
-        geo = loader.Parse(@"data\pig_cd_uv.hclassic");
+        //geo = loader.Parse(@"data\pig_cd_uv.hclassic"); //point attribs only
+        geo = loader.Parse(@"data\pig_tri_n_vertexuv.hclassic");   //vertex and primitive attribs
 
         var meshVertices = new Vertex[geo.NPoints];
         for (int i = 0; i < meshVertices.Length; i++)
@@ -50,14 +51,13 @@ public class MeshRenderer : Common.RendererBase
             Vector3 bitangent = point3 - point2;
             */
             Vector3 normal = geo.PointAttributes[0].attr[i];
-            Color pointColor = new Color(geo.PointAttributes[1].attr[i]);
-            Vector2 pointUV = new Vector2(geo.PointAttributes[2].attr[i].X, 1.0f-geo.PointAttributes[2].attr[i].Y);
-            meshVertices[i] = new Vertex(geo.Points[i], Vector3.Normalize(normal), Color.Silver, pointUV);
-            //meshVertices[i] = new Vertex(geo.Points[i], Vector3.Normalize(normal), pointColor, pointUV);
+            //Color pointColor = new Color(geo.PointAttributes[1].attr[i]);
+            //Vector2 pointUV = new Vector2(geo.PointAttributes[2].attr[i].X, 1.0f-geo.PointAttributes[2].attr[i].Y);
+            //meshVertices[i] = new Vertex(geo.Points[i], Vector3.Normalize(normal), Color.Silver, pointUV);
+            meshVertices[i] = new Vertex(geo.Points[i], Vector3.Normalize(normal), Color.Silver, new Vector2(0.0f));
             //meshVertices[i] = new Vertex(geo.Points[i], point2, Color.Silver, new Vector2(0.0f));
         }
 
-        var color = Color.LightGray;
         meshVertexBuffer = ToDispose(Buffer.Create(device, BindFlags.VertexBuffer, meshVertices));
         meshBinding = new VertexBufferBinding(meshVertexBuffer, Utilities.SizeOf<Vertex>(), 0);
 

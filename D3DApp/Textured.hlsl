@@ -26,15 +26,16 @@ VertexShaderOutput VSMain(VertexShaderInput input)
 
 float4 PSMain(VertexShaderOutput input) : SV_Target
 {
-	
 	float3 normal = normalize(input.WorldNormal); 
 	//float3 toEye = normalize(CameraPosition – input.WorldPosition);
 	float3 toEye = normalize(CameraPosition - input.WorldPosition);
 	float3 toLight = normalize(-Light.Direction);
 
+	//float4 color = float4(1.0f);
+
 	float3 diffuse = Lambert(input.Color, normal, toLight);
 	
-	float4 map = ShaderTexture.Sample(Sampler, input.TextureUV);
+	float4 map = float4(1.0f, 1.0f, 1.0f, 1.0f);// ShaderTexture.Sample(Sampler, input.TextureUV);
 	return input.Color * float4(diffuse, 1.0f) * map;
 
 	//return float4(input.WorldNormal, 1.0);

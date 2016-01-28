@@ -92,6 +92,10 @@
     <None Include="data\pig_cd_uv.hclassic">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="data\pig_tri_n_vertexuv.geo" />
+    <None Include="data\pig_tri_n_vertexuv.hclassic">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="data\torus_tri.hclassic">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

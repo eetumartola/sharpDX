@@ -14,7 +14,7 @@ public struct HPrimitive
 
 }
 
-struct HPointAttribute
+struct HVecAttribute
 {
     public string name;
     public uint size;
@@ -46,7 +46,9 @@ class HClassicGeo
     public uint NAttrib;
     public Vector3[] Points;
     public tri[] Tris;
-    public HPointAttribute[] PointAttributes;
+    public HVecAttribute[] PointAttributes;
+    public HVecAttribute[] VertexAttributes;
+    public HVecAttribute[] PrimAttributes;
 }
 
 
@@ -99,7 +101,7 @@ class HClassicLoader
         {
             var dummyline = geoLines.ReadLine();
             Debug.WriteLine(dummyline);
-            geo.PointAttributes = new HPointAttribute[geo.NPointAttrib];
+            geo.PointAttributes = new HVecAttribute[geo.NPointAttrib];
             for (int i = 0; i < geo.NPointAttrib; i++)
             {
                 var line = geoLines.ReadLine().Split();
@@ -137,6 +139,7 @@ class HClassicLoader
                 float a2 = Convert.ToSingle(lineAttr[3 * k + 1], CultureInfo.InvariantCulture);
                 float a3 = Convert.ToSingle(lineAttr[3 * k + 2], CultureInfo.InvariantCulture);
                 geo.PointAttributes[k].attr[i] = new Vector3(a1, a2, a3);
+                Debug.WriteLine(i + " : " + geo.PointAttributes[k].attr[i]);
             }
         }
         return true;
@@ -144,24 +147,93 @@ class HClassicLoader
 
     private bool ParsePrims()
     {
+
+        if (geo.NVertexAttrib > 0)
+        {
+            var vattribline = geoLines.ReadLine();
+            Debug.WriteLine(vattribline); //should be Run xxxx Poly
+            if (!vattribline.Equals("VertexAttrib")) Debug.WriteLine(" ERROR, line should be VertexAttrib");
+
+            geo.VertexAttributes = new HVecAttribute[geo.NVertexAttrib];
+            for (int i = 0; i < geo.NVertexAttrib; i++)
+            {
+                var line = geoLines.ReadLine().Split();
+                Debug.WriteLine(i + "  " + line[0]);
+                geo.VertexAttributes[i].name = line[0];
+                geo.VertexAttributes[i].size = Convert.ToUInt32(line[1]);
+                geo.VertexAttributes[i].type = line[2];
+                geo.VertexAttributes[i].defaultVal = new Vector3(Convert.ToSingle(line[3], CultureInfo.InvariantCulture), Convert.ToSingle(line[4], CultureInfo.InvariantCulture), Convert.ToSingle(line[5], CultureInfo.InvariantCulture));
+                geo.VertexAttributes[i].attr = new Vector3[geo.NPrims * 3];
+            }
+        }
+
+        if (geo.NPrimAttrib > 0)
+        {
+            var prAttribline = geoLines.ReadLine();
+            Debug.WriteLine(prAttribline);
+            if (!prAttribline.Equals("PrimitiveAttrib")) Debug.WriteLine(" ERROR, line should be PrimitiveAttrib");
+
+            geo.PrimAttributes = new HVecAttribute[geo.NPrimAttrib];
+            for (int i = 0; i < geo.NPrimAttrib; i++)
+            {
+                var line = geoLines.ReadLine().Split();
+                Debug.WriteLine(i + "  " + line[0]);
+                //geo.PrimAttributes[i].name = line[0];
+                //geo.PrimAttributes[i].size = Convert.ToUInt32(line[1]);
+                //geo.PrimAttributes[i].type = line[2];
+                //geo.PrimAttributes[i].defaultVal = new Vector3(Convert.ToSingle(line[3], CultureInfo.InvariantCulture), Convert.ToSingle(line[4], CultureInfo.InvariantCulture), Convert.ToSingle(line[5], CultureInfo.InvariantCulture));
+                //geo.PrimAttributes[i].attr = new Vector3[geo.NPrims];
+            }
+        }
+
         var dummyline = geoLines.ReadLine();
         Debug.WriteLine(dummyline); //should be Run xxxx Poly
 
         geo.Tris = new tri[geo.NPrims];
         for (int i = 0; i < geo.NPrims; i++)
         {
-            var bigline = geoLines.ReadLine();
-            var line = bigline.Split();
-            //Debug.WriteLine(i + " : " + bigline + " 0: " + line[1]);
-            if(!line[1].Equals("3"))
+            var splitLine = geoLines.ReadLine().Split(new char[] { '[', ']' }); //splitLine[0] = vertex stuff, splitLine[1] = prim stuff
+
+            var vLine = splitLine[0].Split(new char[] { '(', ')', ' ' });
+           
+            int vIdx = 1; //skip initial whitespace(tab?)
+            
+            //for (int k = 0; k < vLine.Length; k++) Debug.WriteLine(k + " : " + vLine[k]);
+
+            if (!vLine[vIdx].Equals("3"))
             {
                 Debug.WriteLine("Only triangles supported, sorry");
                 return false;
             }
-            uint i0 = Convert.ToUInt32(line[3], CultureInfo.InvariantCulture);
-            uint i1 = Convert.ToUInt32(line[4], CultureInfo.InvariantCulture);
-            uint i2 = Convert.ToUInt32(line[5], CultureInfo.InvariantCulture);
-            geo.Tris[i] = new tri(i0, i1, i2);
+
+            vIdx += 2; //skip open/closed tag ('<' or ':')
+
+            uint[] indices = new uint[3];
+            for (int vert = 0; vert < 3; vert++)
+            {
+                indices[vert] = Convert.ToUInt32(vLine[vIdx], CultureInfo.InvariantCulture);
+                //Debug.WriteLine("prim " + i + " vert " + vert + " : " + vLine[vIdx]);
+                vIdx++;
+                vIdx++;
+                for (int a = 0; a < geo.NVertexAttrib; a++)
+                {
+                    float[] vecVal = new float[geo.VertexAttributes[a].size];
+                    for (int b = 0; b < geo.VertexAttributes[a].size; b++)
+                    {
+                        vecVal[b] = Convert.ToSingle(vLine[vIdx], CultureInfo.InvariantCulture);
+                        vIdx++;
+                    }
+                    geo.VertexAttributes[a].attr[3 * i + vert] = new Vector3(vecVal);
+                }
+                vIdx++;
+
+            }
+            //uint i1 = Convert.ToUInt32(vLine[4], CultureInfo.InvariantCulture);
+            //uint i2 = Convert.ToUInt32(vLine[5], CultureInfo.InvariantCulture);
+            geo.Tris[i] = new tri(indices[0], indices[1], indices[2]);
+            //Debug.WriteLine("prim " + i + " vert indices: " + indices[0] + " " + indices[1] + " " + indices[2]);
+
+            var pLine = splitLine[1].Split(); // per primitive attributes
         }
         return true;
     }
@@ -172,7 +244,7 @@ class HClassicLoader
         while(line != null)
         {
             line = geoLines.ReadLine();
-            Debug.WriteLine(line);
+            //Debug.WriteLine(line);
         }
     }
 

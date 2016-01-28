@@ -42,8 +42,8 @@ namespace D3DApp
             var mesh = ToDispose(new MeshRenderer());
             mesh.Initialize(this);
             mesh.World = Matrix.Scaling(0.5f);
-            //var fps = ToDispose(new FpsRenderer());
-            //fps.Initialize(this);
+            var fps = ToDispose(new FpsRenderer());
+            fps.Initialize(this);
 
             // Initialize the world matrix
             var worldMatrix = Matrix.Identity;
@@ -113,7 +113,8 @@ namespace D3DApp
 
                 mesh.Render();
                 // Render FPS
-                //fps.Render(); // Render instructions + position changes
+                fps.Render(); 
+                // Render instructions + position changes
                 //textRenderer.Render();
 
                 //myRenderer.Render();
