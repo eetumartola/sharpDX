@@ -35,7 +35,8 @@ float4 PSMain(VertexShaderOutput input) : SV_Target
 
 	float3 diffuse = Lambert(input.Color, normal, toLight);
 	
-	float4 map = float4(1.0f, 1.0f, 1.0f, 1.0f);// ShaderTexture.Sample(Sampler, input.TextureUV);
+	//float4 map = float4(1.0f, 1.0f, 1.0f, 1.0f);
+	float4 map =  ShaderTexture.Sample(Sampler, input.TextureUV);
 	return input.Color * float4(diffuse, 1.0f) * map;
 
 	//return float4(input.WorldNormal, 1.0);

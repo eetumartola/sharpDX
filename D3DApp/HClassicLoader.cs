@@ -66,6 +66,10 @@ class HClassicLoader
         ParsePoints();
         ParsePrims();
         ParseGroups();
+        if(geo.NVertexAttrib > 0)
+        {
+            DuplicateVertices();
+        }
         return geo;
     }
 
@@ -139,7 +143,7 @@ class HClassicLoader
                 float a2 = Convert.ToSingle(lineAttr[3 * k + 1], CultureInfo.InvariantCulture);
                 float a3 = Convert.ToSingle(lineAttr[3 * k + 2], CultureInfo.InvariantCulture);
                 geo.PointAttributes[k].attr[i] = new Vector3(a1, a2, a3);
-                Debug.WriteLine(i + " : " + geo.PointAttributes[k].attr[i]);
+                //Debug.WriteLine(i + " : " + geo.PointAttributes[k].attr[i]);
             }
         }
         return true;
@@ -236,6 +240,105 @@ class HClassicLoader
             var pLine = splitLine[1].Split(); // per primitive attributes
         }
         return true;
+    }
+
+    private void DuplicateVertices()
+    {
+        //Dictionary<int, UnweldVertex> vertexBuffer = new Dictionary<int, UnweldVertex>();
+
+        List<Vector3> newPoints = new List<Vector3>();
+        List<Vector3> newUVs = new List<Vector3>();
+        List<Vector3> newNormals = new List<Vector3>();
+
+        Dictionary<uint, Vector3> uvBuffer = new Dictionary<uint, Vector3>();
+
+        /*
+        // first fill in uvs for the existing points
+        for (uint triIdx = 0; triIdx < geo.Tris.Length; triIdx++)
+        {
+            for (uint triVertIdx = 0; triVertIdx < 3; triVertIdx++)
+            {
+                uint vertPoint = geo.Tris[ triIdx ].verts[ triVertIdx ];
+                Vector3 vertUV = geo.VertexAttributes[0].attr[3 * triIdx + triVertIdx];
+                if( !uvBuffer.ContainsKey(vertPoint))
+                {
+                    uvBuffer.Add(vertPoint, vertUV);
+                }
+            }
+        }
+        */
+
+
+
+        uint newVertIdx = 0;
+
+        for (uint triIdx = 0;  triIdx < geo.Tris.Length; triIdx++)
+        {
+            for (uint triVertIdx = 0; triVertIdx < 3; triVertIdx++)
+            {
+                uint vertPoint = geo.Tris[triIdx].verts[triVertIdx];
+                //Vector3 vertPointPos = geo.Points[ vertPoint ];
+                Vector3 vertUV = geo.VertexAttributes[0].attr[ 3 * triIdx + triVertIdx ];
+
+                if (!uvBuffer.ContainsKey(vertPoint))
+                {
+                    uvBuffer.Add(vertPoint, vertUV); // fill point uvs with first hit
+                }
+                else
+                {
+                    geo.Tris[triIdx].verts[triVertIdx] = geo.NPoints + newVertIdx;
+                    newVertIdx++;
+                    newPoints.Add(geo.Points[vertPoint]);
+                    newNormals.Add(geo.PointAttributes[0].attr[vertPoint]);
+                    newUVs.Add(vertUV);
+                }
+
+
+                /*
+                for (uint scanIdx = 0; scanIdx < geo.NPoints; scanIdx++)
+                {
+                    if(geo.VertexAttributes[0].attr[ scanIdx ] != vertUV)
+                    {
+                        newPoints.Add(geo.Points[vertPoint]);
+                        //newNormals.Add(geo.PointAttributes[0].attr[  ]);
+                        //newUVs.Add(geo.VertexAttributes[0].attr[i]);
+                    }
+                }*/
+            }
+        }
+        Debug.WriteLine("DuplicateVertices(): NPoints " + geo.NPoints + " uvBuffer.Count " + uvBuffer.Count);
+
+        Array.Resize(ref geo.PointAttributes, geo.PointAttributes.Length + 1);
+        geo.NPointAttrib++;
+
+        geo.PointAttributes[geo.PointAttributes.Length - 1].name = "pointuv";
+        geo.PointAttributes[geo.PointAttributes.Length - 1].size = 3;
+        geo.PointAttributes[geo.PointAttributes.Length - 1].type = "float";
+        geo.PointAttributes[geo.PointAttributes.Length - 1].defaultVal = new Vector3(0.0f, 0.0f, 0.0f);
+
+        /*
+        for (int i = 0; i < geo.NPointAttrib; i++)
+        {
+            Array.Resize(ref geo.PointAttributes[i].attr, (int)geo.NPoints);
+        }*/
+
+        geo.PointAttributes[geo.PointAttributes.Length - 1].attr = new Vector3[geo.NPoints];
+        for (uint i = 0; i < geo.NPoints; i++)
+        {
+            geo.PointAttributes[geo.PointAttributes.Length - 1].attr[i] = uvBuffer[i];
+        }
+        geo.PointAttributes[geo.PointAttributes.Length - 1].attr = geo.PointAttributes[geo.PointAttributes.Length - 1].attr.Concat(newUVs.ToArray()).ToArray(); ;
+
+        geo.NPoints += newVertIdx;
+        geo.Points = geo.Points.Concat(newPoints.ToArray()).ToArray();
+        geo.PointAttributes[0].attr = geo.PointAttributes[0].attr.Concat(newNormals.ToArray()).ToArray();
+
+        Debug.WriteLine("DuplicateVertices(): new NPoints " + geo.NPoints + " Points.Length " + geo.Points.Length);
+        Debug.WriteLine("DuplicateVertices(): newPoints " + newPoints.Count + " newUVs " + newUVs.Count);
+        Debug.WriteLine("DuplicateVertices(): P0.L " + geo.PointAttributes[0].attr.Length + " P1.L " + geo.PointAttributes[1].attr.Length);
+
+
+
     }
 
     private void ParseGroups()

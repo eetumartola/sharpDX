@@ -53,8 +53,9 @@ public class MeshRenderer : Common.RendererBase
             Vector3 normal = geo.PointAttributes[0].attr[i];
             //Color pointColor = new Color(geo.PointAttributes[1].attr[i]);
             //Vector2 pointUV = new Vector2(geo.PointAttributes[2].attr[i].X, 1.0f-geo.PointAttributes[2].attr[i].Y);
-            //meshVertices[i] = new Vertex(geo.Points[i], Vector3.Normalize(normal), Color.Silver, pointUV);
-            meshVertices[i] = new Vertex(geo.Points[i], Vector3.Normalize(normal), Color.Silver, new Vector2(0.0f));
+            Vector2 pointUV = new Vector2(geo.PointAttributes[1].attr[i].X, 1.0f - geo.PointAttributes[1].attr[i].Y);
+            meshVertices[i] = new Vertex(geo.Points[i], Vector3.Normalize(normal), Color.Silver, pointUV);
+            //meshVertices[i] = new Vertex(geo.Points[i], Vector3.Normalize(normal), Color.Silver, new Vector2(0.0f));
             //meshVertices[i] = new Vertex(geo.Points[i], point2, Color.Silver, new Vector2(0.0f));
         }
 
