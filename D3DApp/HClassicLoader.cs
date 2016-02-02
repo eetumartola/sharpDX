@@ -244,31 +244,11 @@ class HClassicLoader
 
     private void DuplicateVertices()
     {
-        //Dictionary<int, UnweldVertex> vertexBuffer = new Dictionary<int, UnweldVertex>();
-
         List<Vector3> newPoints = new List<Vector3>();
         List<Vector3> newUVs = new List<Vector3>();
         List<Vector3> newNormals = new List<Vector3>();
 
         Dictionary<uint, Vector3> uvBuffer = new Dictionary<uint, Vector3>();
-
-        /*
-        // first fill in uvs for the existing points
-        for (uint triIdx = 0; triIdx < geo.Tris.Length; triIdx++)
-        {
-            for (uint triVertIdx = 0; triVertIdx < 3; triVertIdx++)
-            {
-                uint vertPoint = geo.Tris[ triIdx ].verts[ triVertIdx ];
-                Vector3 vertUV = geo.VertexAttributes[0].attr[3 * triIdx + triVertIdx];
-                if( !uvBuffer.ContainsKey(vertPoint))
-                {
-                    uvBuffer.Add(vertPoint, vertUV);
-                }
-            }
-        }
-        */
-
-
 
         uint newVertIdx = 0;
 
@@ -280,11 +260,11 @@ class HClassicLoader
                 //Vector3 vertPointPos = geo.Points[ vertPoint ];
                 Vector3 vertUV = geo.VertexAttributes[0].attr[ 3 * triIdx + triVertIdx ];
 
-                if (!uvBuffer.ContainsKey(vertPoint))
+                if ( !uvBuffer.ContainsKey(vertPoint) )
                 {
-                    uvBuffer.Add(vertPoint, vertUV); // fill point uvs with first hit
+                    uvBuffer.Add(vertPoint, vertUV);
                 }
-                else
+                else if(uvBuffer[vertPoint] != vertUV )
                 {
                     geo.Tris[triIdx].verts[triVertIdx] = geo.NPoints + newVertIdx;
                     newVertIdx++;
@@ -292,18 +272,6 @@ class HClassicLoader
                     newNormals.Add(geo.PointAttributes[0].attr[vertPoint]);
                     newUVs.Add(vertUV);
                 }
-
-
-                /*
-                for (uint scanIdx = 0; scanIdx < geo.NPoints; scanIdx++)
-                {
-                    if(geo.VertexAttributes[0].attr[ scanIdx ] != vertUV)
-                    {
-                        newPoints.Add(geo.Points[vertPoint]);
-                        //newNormals.Add(geo.PointAttributes[0].attr[  ]);
-                        //newUVs.Add(geo.VertexAttributes[0].attr[i]);
-                    }
-                }*/
             }
         }
         Debug.WriteLine("DuplicateVertices(): NPoints " + geo.NPoints + " uvBuffer.Count " + uvBuffer.Count);
@@ -315,12 +283,6 @@ class HClassicLoader
         geo.PointAttributes[geo.PointAttributes.Length - 1].size = 3;
         geo.PointAttributes[geo.PointAttributes.Length - 1].type = "float";
         geo.PointAttributes[geo.PointAttributes.Length - 1].defaultVal = new Vector3(0.0f, 0.0f, 0.0f);
-
-        /*
-        for (int i = 0; i < geo.NPointAttrib; i++)
-        {
-            Array.Resize(ref geo.PointAttributes[i].attr, (int)geo.NPoints);
-        }*/
 
         geo.PointAttributes[geo.PointAttributes.Length - 1].attr = new Vector3[geo.NPoints];
         for (uint i = 0; i < geo.NPoints; i++)
@@ -336,8 +298,6 @@ class HClassicLoader
         Debug.WriteLine("DuplicateVertices(): new NPoints " + geo.NPoints + " Points.Length " + geo.Points.Length);
         Debug.WriteLine("DuplicateVertices(): newPoints " + newPoints.Count + " newUVs " + newUVs.Count);
         Debug.WriteLine("DuplicateVertices(): P0.L " + geo.PointAttributes[0].attr.Length + " P1.L " + geo.PointAttributes[1].attr.Length);
-
-
 
     }
 
